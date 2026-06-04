@@ -10,6 +10,10 @@ add_executable(${PROJECT_NAME} ${SOURCE_FILES} ${HEADER_FILES})
 # Set C++ standard
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_20)
 
+# Link SDL3
+add_subdirectory(Vendor/SDL3)
+target_link_libraries(${PROJECT_NAME} PRIVATE SDL3::SDL3)
+
 # Options
 option(WARNINGS_AS_ERRORS "Treat warnings as errors" OFF)
 

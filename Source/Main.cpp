@@ -1,7 +1,21 @@
-#include <iostream>
+#include "Application.hpp"
 
-int main()
+int main(int argc, char *argv[])
 {
-    std::cout << "Hello World!" << std::endl;
+    (void)argc;
+    (void)argv;
+    
+    try
+    {
+        Application application{};
+        application.Init();
+        application.Run();
+    }
+    catch (const std::exception &exception)
+    {
+        std::cerr << "Error: " << exception.what() << std::endl;
+        return 1;
+    }
+
     return 0;
 }
