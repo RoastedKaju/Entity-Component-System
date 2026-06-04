@@ -5,17 +5,45 @@
 #include "Entity.hpp"
 #include "EntityConstants.hpp"
 
-template <typename Tag, typename ComponentType>
-class ComponentManager
+class IComponentManager
 {
 public:
-    ComponentManager()
+    virtual ~IComponentManager() = default;
+    virtual void OnEntityDestroyed(uint64_t id) = 0;
+    virtual const std::string &GetDebugName() const = 0;
+};
+
+template <typename Tag, typename ComponentType>
+class ComponentManager : public IComponentManager
+{
+public:
+    ComponentManager(const std::string &debugName = "") : m_debugName{debugName}
     {
         m_sparse.fill(INVALID_INDEX);
     }
 
-    void AddComponent(Entity<Tag> entity, ComponentType component)
+    void OnEntityDestroyed(uint64_t id) override
     {
+        Entity<Tag> entity(id);
+        // Only call remove if entity has this type of component
+        if (HasComponent(entity))
+        {
+            RemoveComponent(entity);
+        }
+    }
+
+    const std::string &GetDebugName() const override
+    {
+        return m_debugName;
+    }
+
+    void AddComponent(Entity<Tag> entity, const ComponentType &component)
+    {
+        if (m_size >= MAX_ENTITIES)
+        {
+            throw std::runtime_error("Component storage full");
+        }
+
         if (HasComponent(entity))
         {
             throw std::runtime_error("Entity Already has component.");
@@ -63,7 +91,7 @@ public:
         return m_dense[m_sparse[entity.Get()]];
     }
 
-    bool HasComponent(Entity<Tag> entity)
+    bool HasComponent(Entity<Tag> entity) const
     {
         uint64_t id = entity.Get();
         return id < MAX_ENTITIES && m_sparse[id] != INVALID_INDEX;
@@ -77,6 +105,8 @@ private:
     std::array<uint64_t, MAX_ENTITIES> m_entityMap{};
 
     size_t m_size{0};
+
+    std::string m_debugName{};
 };
 
 struct DefaultComponent

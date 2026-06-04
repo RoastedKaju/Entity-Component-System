@@ -2,8 +2,7 @@
 #define APPLICATION_HPP
 
 #include "Common.hpp"
-#include "EntityManager.hpp"
-#include "ComponentManager.hpp"
+#include "World.hpp"
 
 class Application
 {
@@ -20,10 +19,7 @@ private:
     SDL_Renderer *renderer;
     bool running;
 
-    void SpawnEntities();
-
-    std::unique_ptr<EntityManager<DefaultEntity>> m_entityManager;
-    std::unique_ptr<ComponentManager<DefaultEntity, DefaultComponent>> m_componentManager;
+    std::unique_ptr<World> m_world;
 };
 
 #endif // APPLICATION_HPP
