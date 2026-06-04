@@ -10,6 +10,9 @@
 #include <algorithm>
 #include <stdexcept>
 #include <queue>
+#include <cstdint>
+#include <unordered_set>
+#include <array>
 
 #include <SDL3/SDL.h>
 

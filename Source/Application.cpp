@@ -1,6 +1,4 @@
 #include "Application.hpp"
-#include "Entity.hpp"
-#include "EntityManager.hpp"
 
 Application::Application() : window(nullptr), renderer(nullptr), running(false)
 {
@@ -67,16 +65,24 @@ void Application::Shutdown()
 
 void Application::SpawnEntities()
 {
-    entityManager = std::make_unique<EntityManager>();
+    m_entityManager = std::make_unique<EntityManager<DefaultEntity>>();
+    m_componentManager = std::make_unique<ComponentManager<DefaultEntity, DefaultComponent>>();
 
-    std::vector<ID<EntityTag>> entities;
+    std::vector<Entity<DefaultEntity>> entities;
     entities.reserve(5);
 
     // Spawn some entities
     for (auto i = 0; i < 5; ++i)
     {
-        entities.push_back(entityManager->CreateEntity());
+        auto entity = m_entityManager->CreateEntity();
+        entities.push_back(entity);
+
+        // Add component to entity
+        m_componentManager->AddComponent(entity, DefaultComponent{.value = i + 1});
     }
+
+    // Print component data at entity 0
+    std::cout << "Component data for Entity 0 is: " << m_componentManager->GetComponent(entities.at(0)).value << std::endl;
 
     // Print entity IDs
     for (const auto &entity : entities)
@@ -86,13 +92,13 @@ void Application::SpawnEntities()
     std::cout << '\n';
 
     // Print total entity count
-    std::cout << "Total entity count is: " << entityManager->EntityCount() << '\n';
+    std::cout << "Total entity count is: " << m_entityManager->EntityCount() << '\n';
 
     // Destroy one and print count again
-    entityManager->DestroyEntity(entities.at(0));
-    entityManager->DestroyEntity(entities.at(4));
-    std::cout << "New Total entity count is: " << entityManager->EntityCount() << '\n';
+    m_entityManager->DestroyEntity(entities.at(0));
+    m_entityManager->DestroyEntity(entities.at(4));
+    std::cout << "New Total entity count is: " << m_entityManager->EntityCount() << '\n';
 
     // Create a new entity which will take the slot of first entity that was destroyed
-    std::cout << entityManager->CreateEntity().Get() << std::endl;
+    std::cout << "New Entity At Slot: " << m_entityManager->CreateEntity().Get() << std::endl;
 }

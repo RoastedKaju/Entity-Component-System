@@ -3,23 +3,25 @@
 
 #include "Common.hpp"
 
-/// @brief ID Class template for type-safe IDs
-/// @tparam Tag
-template <typename Tag>
-class ID
+template <typename Tag = struct DefaultTag>
+class Entity
 {
 public:
-    constexpr ID(size_t id) : m_id(id) {}
-    constexpr bool operator==(const ID &other) const { return m_id == other.m_id; }
+    constexpr explicit Entity(uint64_t id) : m_id{id} {}
 
-    const size_t &Get() const { return m_id; }
+    constexpr bool operator==(const Entity<Tag> &other) const { return m_id == other.m_id; }
+    constexpr bool operator!=(const Entity<Tag> &other) const { return !(*this == other); }
+
+    constexpr uint64_t Get() const { return m_id; }
 
 private:
-    size_t m_id;
+    uint64_t m_id;
 };
 
-struct EntityTag
+struct DefaultEntity
 {
+    DefaultEntity() = default;
+    ~DefaultEntity() = default;
 };
 
 #endif // ENTITY_HPP

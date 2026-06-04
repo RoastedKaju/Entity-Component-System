@@ -2,6 +2,8 @@
 #define APPLICATION_HPP
 
 #include "Common.hpp"
+#include "EntityManager.hpp"
+#include "ComponentManager.hpp"
 
 class Application
 {
@@ -20,7 +22,8 @@ private:
 
     void SpawnEntities();
 
-    std::unique_ptr<class EntityManager> entityManager;
+    std::unique_ptr<EntityManager<DefaultEntity>> m_entityManager;
+    std::unique_ptr<ComponentManager<DefaultEntity, DefaultComponent>> m_componentManager;
 };
 
 #endif // APPLICATION_HPP
