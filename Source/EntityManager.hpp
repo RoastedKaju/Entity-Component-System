@@ -27,6 +27,9 @@ public:
         }
 
         m_aliveEntities.insert(id);
+
+        std::cout << "Entity Created: " << id << std::endl;
+
         return Entity<Tag>(id);
     }
 
@@ -39,6 +42,8 @@ public:
 
         m_aliveEntities.erase(entity.Get());
         m_freeSlots.push(entity.Get());
+        
+        std::cout << "Entity Destroyed: " << entity.Get() << std::endl;
     }
 
     size_t EntityCount() const

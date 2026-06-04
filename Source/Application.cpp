@@ -22,8 +22,21 @@ void Application::Init()
     // Spawn world
     m_world = std::make_unique<World>();
     // Register components
-    m_world->RegisterComponent<DefaultComponent>("Default Component");
+    m_world->RegisterComponent<BaseComponent>("Default Component");
 
+    // Create Entity
+    auto entity = m_world->CreateEntity();
+
+    // Add components to entity
+    m_world->AddComponent(entity, BaseComponent{.value = 69});
+
+    // Remove Component from entity
+    m_world->RemoveComponent<BaseComponent>(entity);
+
+    m_world->AddComponent<BaseComponent>(entity, BaseComponent{.value = 70});
+
+    // Destroy Entity
+    m_world->DestroyEntity(entity);
 }
 
 void Application::Run()

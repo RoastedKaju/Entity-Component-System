@@ -79,6 +79,8 @@ public:
 
         m_sparse[entityId] = INVALID_INDEX;
         m_size--;
+
+        std::cout << "Component Destroyed: " << denseIndex << std::endl;
     }
 
     ComponentType &GetComponent(Entity<Tag> entity)
@@ -109,7 +111,7 @@ private:
     std::string m_debugName{};
 };
 
-struct DefaultComponent
+struct BaseComponent
 {
     int value;
 };

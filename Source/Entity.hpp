@@ -18,10 +18,10 @@ private:
     uint64_t m_id;
 };
 
-struct DefaultEntity
+struct BaseEntity
 {
-    DefaultEntity() = default;
-    ~DefaultEntity() = default;
+    BaseEntity() = default;
+    ~BaseEntity() = default;
 };
 
 #endif // ENTITY_HPP
