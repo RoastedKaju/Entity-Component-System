@@ -17,6 +17,7 @@
 #include <bitset>
 
 #include <SDL3/SDL.h>
+#include <SDL3_image/SDL_image.h>
 
 static inline void check(bool result, const std::string &message = "Check failed")
 {

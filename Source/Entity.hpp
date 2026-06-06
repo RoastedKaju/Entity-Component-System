@@ -356,12 +356,4 @@ struct SceneView
     }
 };
 
-// Systems
-struct System
-{
-    virtual ~System() = default;
-
-    virtual void Update(Scene &scene, float deltaTime) = 0;
-};
-
 #endif // Entity_COMPONENT_SYSTEM_HPP

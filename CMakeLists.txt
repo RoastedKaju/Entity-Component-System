@@ -14,6 +14,11 @@ target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_20)
 add_subdirectory(Vendor/SDL3)
 target_link_libraries(${PROJECT_NAME} PRIVATE SDL3::SDL3)
 
+# Link SDL3 Image
+set(SDLIMAGE_VENDORED OFF CACHE BOOL "" FORCE) # use system libs instead of vendored
+add_subdirectory(Vendor/SDL3Image)
+target_link_libraries(${PROJECT_NAME} PRIVATE SDL3_image::SDL3_image)
+
 # Options
 option(WARNINGS_AS_ERRORS "Treat warnings as errors" OFF)
 
@@ -26,3 +31,6 @@ if(MSVC)
 else()
     target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic)
 endif()
+
+# Paths
+target_compile_definitions(${PROJECT_NAME} PRIVATE ASSET_DIR="${CMAKE_SOURCE_DIR}/Assets/")
