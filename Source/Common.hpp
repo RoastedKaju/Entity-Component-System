@@ -13,6 +13,8 @@
 #include <cstdint>
 #include <unordered_set>
 #include <array>
+#include <atomic>
+#include <bitset>
 
 #include <SDL3/SDL.h>
 
