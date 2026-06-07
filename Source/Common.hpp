@@ -18,6 +18,7 @@
 
 #include <SDL3/SDL.h>
 #include <SDL3_image/SDL_image.h>
+#include <SDL3/SDL_render.h>
 
 static inline void check(bool result, const std::string &message = "Check failed")
 {

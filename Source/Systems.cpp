@@ -21,7 +21,8 @@ void RenderingSystem::Render(Scene &scene, SDL_Renderer *renderer)
     {
         auto *backgroundComp = scene.GetComponent<BackgroundComponent>(entity);
 
-        SDL_FRect rect{0, 0, (float)width, (float)height};
+        // SDL_FRect rect{0, 0, (float)width, (float)height};
+        SDL_FRect rect{0, 0, 640, 480};
 
         SDL_RenderTexture(renderer, backgroundComp->texture->GetSDLTexture(), nullptr, &rect);
     }

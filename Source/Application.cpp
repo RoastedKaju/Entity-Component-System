@@ -13,11 +13,15 @@ void Application::Init()
 {
     check(SDL_Init(SDL_INIT_VIDEO), "Failed to initialize SDL");
 
-    window = SDL_CreateWindow("ECS Application", 800, 600, SDL_WINDOW_RESIZABLE);
+    int width = 640;
+    int height = 480;
+    window = SDL_CreateWindow("ECS Application", width, height, SDL_WINDOW_RESIZABLE);
     check(window != nullptr, "Failed to create Window.");
 
     renderer = SDL_CreateRenderer(window, nullptr);
     check(renderer != nullptr, "Failed to create Renderer.");
+
+    SDL_SetRenderLogicalPresentation(renderer, width, height, SDL_LOGICAL_PRESENTATION_LETTERBOX);
 
     // Create World
     world = std::make_unique<World>(renderer);
@@ -44,6 +48,25 @@ void Application::Run()
             if (event.type == SDL_EVENT_QUIT)
             {
                 running = false;
+            }
+            else if (event.type == SDL_EVENT_KEY_DOWN)
+            {
+                if (event.key.scancode == SDL_SCANCODE_RETURN && event.key.mod & SDL_KMOD_ALT)
+                {
+                    SDL_WindowFlags flags = SDL_GetWindowFlags(window);
+                    if (flags & SDL_WINDOW_FULLSCREEN)
+                    {
+                        // Back to windowed
+                        SDL_SetWindowFullscreen(window, false);
+                        SDL_SetWindowBordered(window, true);
+                    }
+                    else
+                    {
+                        // Go to fullscreen mode
+                        SDL_SetWindowFullscreen(window, true);
+                        SDL_SetWindowBordered(window, false);
+                    }
+                }
             }
         }
 
