@@ -85,6 +85,99 @@ struct ComponentPool : IComponentPool
     }
 };
 
+// Forward declare Scene struct
+struct Scene;
+template <typename... ComponentTypes>
+struct SceneView
+{
+    Scene *pScene;
+    ComponentMask mask;
+    bool all{false};
+
+    SceneView(Scene &scene) : pScene{&scene}
+    {
+        // set all bits of mentioned component types
+        (mask.set(GetComponentTypeId<ComponentTypes>()), ...);
+    }
+
+    // All the components at entity matches our mask
+    inline bool Matches(EntityIndex index) const
+    {
+        const auto &entity = pScene->entities[index];
+
+        if (!entity.alive)
+        {
+            return false;
+        }
+
+        return (entity.mask & mask) == mask;
+    }
+
+    struct Iterator
+    {
+        const SceneView *view;
+        EntityIndex index;
+
+        Iterator(const SceneView *view, EntityIndex index) : view(view), index(index)
+        {
+            // this will give the first entity that matches our mask
+            SkipInvalid();
+        }
+
+        // Loop over entities
+        // if the component mask matches then break
+        // else increment
+        inline void SkipInvalid()
+        {
+            while (index < view->pScene->entities.size())
+            {
+                if (view->Matches(index))
+                {
+                    break;
+                }
+
+                ++index;
+            }
+        }
+
+        EntityId operator*() const
+        {
+            // give back the entity id we are currently at
+            const auto &entity = view->pScene->entities[index];
+            return CreateEntityId(index, entity.version);
+        }
+
+        bool operator==(const Iterator &other) const
+        {
+            // compare two iterators
+            return index == other.index;
+        }
+
+        bool operator!=(const Iterator &other) const
+        {
+            return !(*this == other);
+        }
+
+        Iterator &operator++()
+        {
+            // move iterator forward
+            ++index;
+            SkipInvalid();
+            return *this;
+        }
+    };
+
+    const Iterator begin() const
+    {
+        return Iterator(this, 0);
+    }
+
+    const Iterator end() const
+    {
+        return Iterator(this, static_cast<EntityIndex>(pScene->entities.size()));
+    }
+};
+
 // Scene manages all the entities and components
 // Assigns and removes components to entities
 struct Scene
@@ -250,110 +343,15 @@ struct Scene
         entities[index].mask.reset(componentId);
     }
 
-    /**
-     * Add a view implmentation here so users can call the scene view from scene
-     * template<typename... Components>
-     * SceneView<Components...> View()
-     * {
-     *   // Make sure you specify the components
-     *   static_assert(sizeof...(Components) > 0, "View() requires at least one component type.");
-     *   // This will call the function in scene view using this scene as argument
-     *   return SceneView<Components...>(*this);
-     * }
-     */
+    // A way to call scene view from scene
+    template <typename... ComponentTypes>
+    SceneView<ComponentTypes...> View()
+    {
+        return SceneView<ComponentTypes...>(*this);
+    }
 
+    // Pool storage
     std::vector<std::unique_ptr<IComponentPool>> componentPools;
-};
-
-template <typename... ComponentTypes>
-struct SceneView
-{
-    Scene *pScene;
-    ComponentMask mask;
-    bool all{false};
-
-    SceneView(Scene &scene) : pScene{&scene}
-    {
-        // set all bits of mentioned component types
-        (mask.set(GetComponentTypeId<ComponentTypes>()), ...);
-    }
-
-    // All the components at entity matches our mask
-    inline bool Matches(EntityIndex index) const
-    {
-        const auto &entity = pScene->entities[index];
-
-        if (!entity.alive)
-        {
-            return false;
-        }
-
-        return (entity.mask & mask) == mask;
-    }
-
-    struct Iterator
-    {
-        const SceneView *view;
-        EntityIndex index;
-
-        Iterator(const SceneView *view, EntityIndex index) : view(view), index(index)
-        {
-            // this will give the first entity that matches our mask
-            SkipInvalid();
-        }
-
-        // Loop over entities
-        // if the component mask matches then break
-        // else increment
-        inline void SkipInvalid()
-        {
-            while (index < view->pScene->entities.size())
-            {
-                if (view->Matches(index))
-                {
-                    break;
-                }
-
-                ++index;
-            }
-        }
-
-        EntityId operator*() const
-        {
-            // give back the entity id we are currently at
-            const auto &entity = view->pScene->entities[index];
-            return CreateEntityId(index, entity.version);
-        }
-
-        bool operator==(const Iterator &other) const
-        {
-            // compare two iterators
-            return index == other.index;
-        }
-
-        bool operator!=(const Iterator &other) const
-        {
-            return !(*this == other);
-        }
-
-        Iterator &operator++()
-        {
-            // move iterator forward
-            ++index;
-            SkipInvalid();
-            return *this;
-        }
-    };
-
-    const Iterator begin() const
-    {
-        return Iterator(this, 0);
-    }
-
-    const Iterator end() const
-    {
-        return Iterator(this, static_cast<EntityIndex>(pScene->entities.size()));
-    }
 };
 
 #endif // Entity_COMPONENT_SYSTEM_HPP

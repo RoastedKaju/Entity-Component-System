@@ -15,11 +15,10 @@ void World::Init()
 
     // Make Entites And Attach Components
     EntityId backgroundEntity = scene.CreateEntity();
-    auto *backgroundComp = scene.AddComponent<BackgroundComponent>(backgroundEntity);
-    backgroundComp->texture = backgroundTexture.get();
+    scene.AddComponent<BackgroundComponent>(backgroundEntity, backgroundTexture.get());
 
     // Make systems
-    renderSystems.push_back(std::make_unique<BackgroundSystem>());
+    renderSystems.push_back(std::make_unique<RenderingSystem>());
 }
 
 void World::Update(float deltaTime)
