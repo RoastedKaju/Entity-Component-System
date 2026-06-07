@@ -13,8 +13,8 @@ public:
     inline const std::string &GetPath() const { return path; }
 
 private:
-    SDL_Texture *texture;
     std::string path;
+    SDL_Texture *texture;
 };
 
 #endif // TEXTURE_HPP

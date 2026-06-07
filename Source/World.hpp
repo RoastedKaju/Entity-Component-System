@@ -24,6 +24,7 @@ private:
 
     // Textures
     std::unique_ptr<Texture> backgroundTexture;
+    std::unique_ptr<Texture> botTexture;
 
     // Systems
     std::vector<std::unique_ptr<ISystem>> updateSystems;
