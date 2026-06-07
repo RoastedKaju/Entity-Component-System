@@ -29,9 +29,16 @@ void Application::Run()
 {
     running = true;
 
+    Uint64 previousTime = SDL_GetPerformanceCounter();
+
     SDL_Event event;
     while (running)
     {
+        Uint64 currentTime = SDL_GetPerformanceCounter();
+
+        float deltaTime = static_cast<float>(currentTime - previousTime) - static_cast<float>(SDL_GetPerformanceFrequency());
+        previousTime = currentTime;
+
         while (SDL_PollEvent(&event))
         {
             if (event.type == SDL_EVENT_QUIT)
@@ -41,7 +48,7 @@ void Application::Run()
         }
 
         // Update Logic
-        world->Update(0.0f);
+        world->Update(deltaTime);
 
         // Set clear color
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
