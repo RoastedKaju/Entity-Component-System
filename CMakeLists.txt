@@ -34,3 +34,5 @@ endif()
 
 # Paths
 target_compile_definitions(${PROJECT_NAME} PRIVATE ASSET_DIR="${CMAKE_SOURCE_DIR}/Assets/")
+
+# TODO: Add post build command to copy over SDL DLLs

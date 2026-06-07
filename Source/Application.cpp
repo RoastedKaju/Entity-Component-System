@@ -40,7 +40,7 @@ void Application::Run()
     {
         Uint64 currentTime = SDL_GetPerformanceCounter();
 
-        float deltaTime = static_cast<float>(currentTime - previousTime) - static_cast<float>(SDL_GetPerformanceFrequency());
+        float deltaTime = static_cast<float>(currentTime - previousTime) / static_cast<float>(SDL_GetPerformanceFrequency());
         previousTime = currentTime;
 
         while (SDL_PollEvent(&event))

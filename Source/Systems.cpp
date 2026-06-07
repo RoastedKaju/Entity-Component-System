@@ -15,15 +15,14 @@ void RenderingSystem::Render(Scene &scene, SDL_Renderer *renderer)
     // Render background
     auto view = scene.View<BackgroundComponent>();
 
-    int width, height;
-    SDL_GetRenderOutputSize(renderer, &width, &height);
+    int logicalWidth, logicalHeight;
+    SDL_GetRenderLogicalPresentation(renderer, &logicalWidth, &logicalHeight, nullptr);
 
     for (auto entity : view)
     {
         auto *backgroundComp = scene.GetComponent<BackgroundComponent>(entity);
 
-        // SDL_FRect rect{0, 0, (float)width, (float)height};
-        SDL_FRect rect{0, 0, 640, 480};
+        SDL_FRect rect{0, 0, (float)logicalWidth, (float)logicalHeight};
 
         SDL_RenderTexture(renderer, backgroundComp->texture->GetSDLTexture(), nullptr, &rect);
     }
@@ -42,7 +41,7 @@ void RenderingSystem::Render(Scene &scene, SDL_Renderer *renderer)
     }
 }
 
-MovementSystem::MovementSystem()
+MovementSystem::MovementSystem(SDL_Renderer *renderer) : renderer{renderer}
 {
     std::cout << "Movement System Initialized.\n";
 }
@@ -54,12 +53,53 @@ MovementSystem::~MovementSystem()
 
 void MovementSystem::Update(Scene &scene, float deltaTime)
 {
-    auto view = scene.View<TransformComponent>();
+    auto view = scene.View<TransformComponent, WanderComponent>();
+    const float speed = 25.0f;
+
+    int logicalWidth, logicalHeight;
+    SDL_GetRenderLogicalPresentation(renderer, &logicalWidth, &logicalHeight, nullptr);
 
     for (auto entity : view)
     {
         auto *transformComp = scene.GetComponent<TransformComponent>(entity);
+        auto *wanderComp = scene.GetComponent<WanderComponent>(entity);
 
-        transformComp->x += 0.01f;
+        // Move in current direction
+        transformComp->x += wanderComp->dx * speed * deltaTime;
+        transformComp->y += wanderComp->dy * speed * deltaTime;
+
+        // Check bounds
+        bool hitEdge = false;
+        if (transformComp->x < 0)
+        {
+            transformComp->x = 0;
+            hitEdge = true;
+        }
+        if (transformComp->x > static_cast<float>(logicalWidth - 32))
+        {
+            transformComp->x = static_cast<float>(logicalWidth - 32);
+            hitEdge = true;
+        }
+        if (transformComp->y < 0)
+        {
+            transformComp->y = 0;
+            hitEdge = true;
+        }
+        if (transformComp->y > static_cast<float>(logicalHeight - 42))
+        {
+            transformComp->y = static_cast<float>(logicalHeight - 42);
+            hitEdge = true;
+        }
+
+        // If we hit an edge, pick a new random direction
+        if (hitEdge)
+        {
+            float angle = RandomFloat(0.0f, 2.0f * 3.1415926535f);
+
+            wanderComp->dx = std::cos(angle);
+            wanderComp->dy = std::sin(angle);
+        }
     }
+
+    // Wandering
 }

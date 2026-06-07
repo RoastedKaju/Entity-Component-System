@@ -29,10 +29,12 @@ struct RenderingSystem : public IRenderSystem
 
 struct MovementSystem : public ISystem
 {
-    MovementSystem();
+    MovementSystem(SDL_Renderer *renderer);
     ~MovementSystem() override;
 
     void Update(Scene &scene, float deltaTime) override;
+
+    SDL_Renderer *renderer;
 };
 
 #endif // SYSTEMS_HPP

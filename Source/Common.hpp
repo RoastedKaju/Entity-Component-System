@@ -15,6 +15,8 @@
 #include <array>
 #include <atomic>
 #include <bitset>
+#include <random>
+#include <cmath>
 
 #include <SDL3/SDL.h>
 #include <SDL3_image/SDL_image.h>
@@ -26,6 +28,15 @@ static inline void check(bool result, const std::string &message = "Check failed
     {
         throw std::runtime_error(message);
     }
+}
+
+static inline float RandomFloat(float min, float max)
+{
+    static std::random_device randomDevice;
+    static std::mt19937 rng(randomDevice());
+
+    std::uniform_real_distribution<float> dist(min, max);
+    return dist(rng);
 }
 
 #endif // COMMON_HPP

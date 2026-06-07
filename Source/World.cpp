@@ -10,6 +10,10 @@ World::~World()
 
 void World::Init()
 {
+    // Logical screen size
+    int logicalWidth, logicalHeight;
+    SDL_GetRenderLogicalPresentation(renderer, &logicalWidth, &logicalHeight, nullptr);
+
     // Load resources
     backgroundTexture = std::make_unique<Texture>(renderer, "Background.png");
     botTexture = std::make_unique<Texture>(renderer, "Robot.png");
@@ -18,13 +22,21 @@ void World::Init()
     EntityId backgroundEntity = scene.CreateEntity();
     scene.AddComponent<BackgroundComponent>(backgroundEntity, backgroundTexture.get());
 
-    // TODO: Add helpful error if texture is null
-    EntityId botEntity = scene.CreateEntity();
-    scene.AddComponent<SpriteComponent>(botEntity, botTexture.get());
-    scene.AddComponent<TransformComponent>(botEntity);
+    for (size_t i = 0; i < 10; ++i)
+    {
+        // Pick a random location on our logical screen
+        const float x = RandomFloat(0.0f, (float)logicalWidth);
+        const float y = RandomFloat(0.0f, (float)logicalHeight);
+
+        // TODO: Add helpful error if let's say texture is null
+        EntityId botEntity = scene.CreateEntity();
+        scene.AddComponent<SpriteComponent>(botEntity, botTexture.get());
+        scene.AddComponent<TransformComponent>(botEntity, x, y);
+        scene.AddComponent<WanderComponent>(botEntity);
+    }
 
     // Make systems
-    updateSystems.push_back(std::make_unique<MovementSystem>());
+    updateSystems.push_back(std::make_unique<MovementSystem>(renderer));
     renderSystems.push_back(std::make_unique<RenderingSystem>());
 }
 

@@ -29,4 +29,18 @@ struct TransformComponent
     float y{0.0f};
 };
 
+struct WanderComponent
+{
+    WanderComponent()
+    {
+        float angle = RandomFloat(0.0f, 2.0f * 3.1415926535f);
+        dx = std::cos(angle);
+        dy = std::sin(angle);
+    }
+    WanderComponent(float dx, float dy) : dx{dx}, dy{dy} {}
+
+    float dx;
+    float dy;
+};
+
 #endif // COMPONENTS_HPP
