@@ -41,6 +41,7 @@ struct WanderComponent
 
     float dx;
     float dy;
+    float speed{25.0f};
 };
 
 #endif // COMPONENTS_HPP

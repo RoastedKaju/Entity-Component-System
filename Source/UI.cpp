@@ -1,6 +1,6 @@
 #include "UI.hpp"
 
-UI::UI(SDL_Window *window, SDL_Renderer *renderer) : window{window}, renderer{renderer}
+UI::UI(SDL_Window *window, SDL_Renderer *renderer, World *world) : window{window}, renderer{renderer}, world{world}
 {
 	ImGui::CreateContext();
 	ImGui::StyleColorsDark();
@@ -33,10 +33,14 @@ void UI::StartFrame()
 
 void UI::DrawUI(float deltaTime)
 {
-	ImGui::Begin("Debug");
+	ImGui::Begin("Settings");
 
 	ImGui::Text("FPS: %.1f", 1.0f / deltaTime);
 	ImGui::Text("Delta Time: %.4f", deltaTime);
+
+	int count = world->desiredBotCount;
+	ImGui::SliderInt("Bot Count", &count, 0, 100'000);
+	world->desiredBotCount = count;
 
 	ImGui::End();
 }

@@ -29,7 +29,7 @@ void Application::Init()
     world->Init();
 
     // Init UI Manager
-    uiManager = std::make_unique<UI>(window, renderer);
+    uiManager = std::make_unique<UI>(window, renderer, world.get());
 }
 
 void Application::Run()

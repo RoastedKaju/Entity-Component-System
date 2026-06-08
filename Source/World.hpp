@@ -16,11 +16,21 @@ public:
     void Update(float deltaTime);
     void Render();
 
+    void AddBot();
+    void RemoveBot();
+
+    size_t GetBotCount() const { return bots.size(); }
+
+    uint32_t desiredBotCount = 10;
+
 private:
     SDL_Renderer *renderer;
 
     // Entity Manager
     Scene scene;
+
+    // Bots
+    std::vector<EntityId> bots;
 
     // Textures
     std::unique_ptr<Texture> backgroundTexture;

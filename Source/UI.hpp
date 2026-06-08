@@ -2,6 +2,7 @@
 #define UI_HPP
 
 #include "Common.hpp"
+#include "World.hpp"
 
 #include "imgui.h"
 #include "imgui_impl_sdl3.h"
@@ -10,7 +11,7 @@
 class UI
 {
 public:
-	UI(SDL_Window *window, SDL_Renderer *renderer);
+	UI(SDL_Window *window, SDL_Renderer *renderer, World *world);
 	~UI();
 
 	void PollEvent(SDL_Event &event);
@@ -21,6 +22,7 @@ public:
 private:
 	SDL_Window *window;
 	SDL_Renderer *renderer;
+	World *world;
 
 	int logicalWidth;
 	int logicalHeight;
