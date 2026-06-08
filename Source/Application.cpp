@@ -23,16 +23,13 @@ void Application::Init()
 
     SDL_SetRenderLogicalPresentation(renderer, width, height, SDL_LOGICAL_PRESENTATION_LETTERBOX);
 
-    ImGui::CreateContext();
-    ImGui::StyleColorsDark();
-
-    ImGui_ImplSDL3_InitForSDLRenderer(window, renderer);
-    ImGui_ImplSDLRenderer3_Init(renderer);
-
     // Create World
     world = std::make_unique<World>(renderer);
 
     world->Init();
+
+    // Init UI Manager
+    uiManager = std::make_unique<UI>(window, renderer);
 }
 
 void Application::Run()
@@ -51,7 +48,7 @@ void Application::Run()
 
         while (SDL_PollEvent(&event))
         {
-            ImGui_ImplSDL3_ProcessEvent(&event);
+            uiManager->PollEvent(event);
 
             if (event.type == SDL_EVENT_QUIT)
             {
@@ -88,20 +85,14 @@ void Application::Run()
         // Render world
         world->Render();
 
-        // ImGui
-        ImGui_ImplSDLRenderer3_NewFrame();
-        ImGui_ImplSDL3_NewFrame();
-        ImGui::NewFrame();
+        // Start UI Frame
+        uiManager->StartFrame();
 
-        ImGui::Begin("Debug");
+        // Render UI
+        uiManager->DrawUI(deltaTime);
 
-        ImGui::Text("FPS: %.1f", 1.0f / deltaTime);
-        ImGui::Text("Delta Time: %.4f", deltaTime);
-
-        ImGui::End();
-
-        ImGui::Render();
-        ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), renderer);
+        // End UI Frame
+        uiManager->EndFrame();
 
         // Present
         SDL_RenderPresent(renderer);
@@ -110,10 +101,10 @@ void Application::Run()
 
 void Application::Shutdown()
 {
-    ImGui_ImplSDLRenderer3_Shutdown();
-    ImGui_ImplSDL3_Shutdown();
-    ImGui::DestroyContext();
-
+    if (uiManager)
+    {
+        uiManager.reset();
+    }
     if (world)
     {
         world.reset();

@@ -3,10 +3,7 @@
 
 #include "Common.hpp"
 #include "World.hpp"
-
-#include "imgui.h"
-#include "imgui_impl_sdl3.h"
-#include "imgui_impl_sdlrenderer3.h"
+#include "UI.hpp"
 
 class Application
 {
@@ -24,6 +21,7 @@ private:
     bool running;
 
     std::unique_ptr<World> world;
+    std::unique_ptr<UI> uiManager;
 };
 
 #endif // APPLICATION_HPP

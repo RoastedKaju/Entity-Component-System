@@ -22,7 +22,7 @@ void World::Init()
     EntityId backgroundEntity = scene.CreateEntity();
     scene.AddComponent<BackgroundComponent>(backgroundEntity, backgroundTexture.get());
 
-    for (size_t i = 0; i < 10; ++i)
+    for (size_t i = 0; i < 9000; ++i)
     {
         // Pick a random location on our logical screen
         const float x = RandomFloat(0.0f, (float)logicalWidth);

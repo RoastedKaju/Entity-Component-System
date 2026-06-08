@@ -261,6 +261,7 @@ struct Scene
     template <typename T>
     bool HasComponent(EntityId id)
     {
+        // cost 20 FPS
         assert(IsAlive(id));
 
         EntityIndex index = GetEntityIndex(id);
@@ -274,12 +275,14 @@ struct Scene
     template <typename T>
     T *GetComponent(EntityId id)
     {
+        // cost 20 FPS
         assert(IsAlive(id));
 
-        if (!HasComponent<T>(id))
-        {
-            return nullptr;
-        }
+        // cost 40-50 FPS
+        // if (!HasComponent<T>(id))
+        // {
+        //     return nullptr;
+        // }
 
         EntityIndex index = GetEntityIndex(id);
 
