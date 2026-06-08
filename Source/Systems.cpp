@@ -7,7 +7,7 @@ RenderingSystem::RenderingSystem()
 
 RenderingSystem::~RenderingSystem()
 {
-    std::cout << "Background System Destroyed.\n";
+    std::cout << "Rendering System Destroyed.\n";
 }
 
 void RenderingSystem::Render(Scene &scene, SDL_Renderer *renderer)
