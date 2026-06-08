@@ -1,6 +1,6 @@
 # Entity Component System
 <p align="center">
-  <img src="docs/header.jpg">
+  <img src="Docs/header.jpg">
 </p>
 Simple ECS made from scratch for learning purposes, Comes with SDL3 Demo for wandering entities in a sandbox.
 
@@ -19,7 +19,7 @@ No RTTI overhead for type IDs.
 - Demo World
 
 <p align="center">
-  <img src="docs/game.jpg">
+  <img src="Docs/game.jpg">
 </p>
 
 ## Built With
