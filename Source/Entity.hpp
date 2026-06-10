@@ -3,247 +3,99 @@
 
 #include "Common.hpp"
 
-constexpr uint32_t MAX_COMPONENTS_TYPES = 32;
-constexpr uint32_t MAX_ENTITIES = 10'000;
+constexpr uint32_t MAX_ENTITY_COUNT = 10'000;
+constexpr uint32_t MAX_COMPONENT_TYPES = 32;
 constexpr uint32_t INVALID_ENTITY_INDEX = std::numeric_limits<uint32_t>::max();
 
-using ComponentTypeId = uint32_t;
+using EntityID = uint64_t;
+using ComponentTypeID = uint32_t;
 using EntityIndex = uint32_t;
-using EntityVersion = uint32_t;
-using EntityId = uint64_t;
-using ComponentMask = std::bitset<MAX_COMPONENTS_TYPES>;
+using EntityGeneration = uint32_t;
+using ComponentMask = std::bitset<MAX_COMPONENT_TYPES>;
 
-// Unique compile time ID generator for component types
-inline std::atomic<ComponentTypeId> sComponentCounter = 0;
+inline std::atomic<ComponentTypeID> nextComponentID = 0;
+// Get component type ID
 template <typename T>
-ComponentTypeId GetComponentTypeId()
+ComponentTypeID GetComponentTypeID()
 {
-    static ComponentTypeId sComponentId = sComponentCounter.fetch_add(1, std::memory_order_relaxed);
-    return sComponentId;
+    static ComponentTypeID ID = nextComponentID.fetch_add(1, std::memory_order_relaxed);
+    assert(ID < MAX_COMPONENT_TYPES && "Exceeded max component types");
+    return ID;
 }
 
-// Utility functions for getting unqiue entity ID along with its version
-inline EntityId CreateEntityId(EntityIndex index, EntityVersion version)
+// Create entity ID by combinding index and version
+// First 32 bits are index, last 32 bits are version
+inline EntityID CreateEntityID(EntityIndex index, EntityGeneration generation)
 {
-    // Shift index to left 32 bits and add version at right
-    return ((EntityId)index << 32) | ((EntityId)version);
+    return ((EntityID)index << 32) | ((EntityID)generation);
 }
-inline EntityIndex GetEntityIndex(EntityId id)
+inline EntityIndex GetEntityIndex(EntityID entity)
 {
-    return id >> 32;
+    return entity >> 32;
 }
-inline EntityVersion GetEntityVersion(EntityId id)
+inline EntityGeneration GetEntityGeneration(EntityID entity)
 {
-    // cast to 32 bits, loosing the 32 bits on the left leaving you with only version
-    return static_cast<EntityVersion>(id);
+    return static_cast<EntityGeneration>(entity);
 }
 
-// Component pools will act as a buffer where we will place our components
-// This is a bit wasteful for larger projects because it allocates all the memory upfront
-// Consider using sparse set instead of this for better book-keeping
-// To automatically destroy all the components when entity is destroyed we introduce typed component pool
-struct IComponentPool
+struct IStorage
 {
-    virtual ~IComponentPool() = default;
-
-    virtual void DestroyAt(size_t index) = 0;
+    virtual ~IStorage() = default;
     virtual void *Get(size_t index) = 0;
+    virtual void Destroy(size_t index) = 0;
 };
 
 template <typename T>
-struct ComponentPool : IComponentPool
+struct PoolStorage : public IStorage
 {
-    void *pData{nullptr};
+    void *data{nullptr};
     size_t elementSize{0};
     size_t alignment{0};
 
-    ComponentPool()
+    PoolStorage()
     {
         elementSize = sizeof(T);
         alignment = alignof(T);
 
-        // :: indicates that we are calling global space, not any class specified
-        // operator new unlike just new does not initialize memory, only allocates it
-        pData = ::operator new(elementSize * MAX_ENTITIES, std::align_val_t(alignment));
+        data = ::operator new(elementSize * MAX_ENTITY_COUNT, std::align_val_t(alignment));
     }
 
-    ~ComponentPool()
+    ~PoolStorage()
     {
-        ::operator delete(pData, std::align_val_t(alignment));
-    }
-
-    void DestroyAt(size_t index) override
-    {
-        T *component = static_cast<T *>(Get(index));
-        // call the component's destructor
-        component->~T();
+        ::operator delete(data, std::align_val_t(alignment));
     }
 
     void *Get(size_t index) override
     {
-        return static_cast<char *>(pData) + index * elementSize;
+        return static_cast<char *>(data) + index * elementSize;
+    }
+
+    void Destroy(size_t index) override
+    {
+        // gets the pointer to this component's memory location
+        T *component = static_cast<T *>(Get(index));
+        component->~T();
     }
 };
 
-// Forward declare Scene struct
-struct Scene;
-template <typename... ComponentTypes>
-struct SceneView
-{
-    Scene *pScene;
-    ComponentMask mask;
-    bool all{false};
-
-    SceneView(Scene &scene) : pScene{&scene}
-    {
-        // set all bits of mentioned component types
-        (mask.set(GetComponentTypeId<ComponentTypes>()), ...);
-    }
-
-    // All the components at entity matches our mask
-    inline bool Matches(EntityIndex index) const
-    {
-        const auto &entity = pScene->entities[index];
-
-        if (!entity.alive)
-        {
-            return false;
-        }
-
-        return (entity.mask & mask) == mask;
-    }
-
-    struct Iterator
-    {
-        const SceneView *view;
-        EntityIndex index;
-
-        Iterator(const SceneView *view, EntityIndex index) : view(view), index(index)
-        {
-            // this will give the first entity that matches our mask
-            SkipInvalid();
-        }
-
-        // Loop over entities
-        // if the component mask matches then break
-        // else increment
-        inline void SkipInvalid()
-        {
-            while (index < view->pScene->entities.size())
-            {
-                if (view->Matches(index))
-                {
-                    break;
-                }
-
-                ++index;
-            }
-        }
-
-        EntityId operator*() const
-        {
-            // give back the entity id we are currently at
-            const auto &entity = view->pScene->entities[index];
-            return CreateEntityId(index, entity.version);
-        }
-
-        bool operator==(const Iterator &other) const
-        {
-            // compare two iterators
-            return index == other.index;
-        }
-
-        bool operator!=(const Iterator &other) const
-        {
-            return !(*this == other);
-        }
-
-        Iterator &operator++()
-        {
-            // move iterator forward
-            ++index;
-            SkipInvalid();
-            return *this;
-        }
-    };
-
-    const Iterator begin() const
-    {
-        return Iterator(this, 0);
-    }
-
-    const Iterator end() const
-    {
-        return Iterator(this, static_cast<EntityIndex>(pScene->entities.size()));
-    }
-};
-
-// Scene manages all the entities and components
-// Assigns and removes components to entities
 struct Scene
 {
-    // All the information we need about each entity
+    // All the information about entity
+    // minus the entity index as the entity index will map 1-1 directly with our entities vector
     struct EntityDesc
     {
-        EntityVersion version = 1;
-        ComponentMask mask;
-        bool alive = false;
+        EntityGeneration generation{0};
+        ComponentMask mask{};
+        bool alive{false};
     };
+
+    // tracking lists
     std::vector<EntityDesc> entities;
-    std::vector<EntityIndex> freeEntities;
+    std::vector<EntityIndex> freeIndices; // use stack its better for LIFO
+    std::vector<std::unique_ptr<IStorage>> componentPools;
+    // can also add list of alive indices, but you will have to do extra book keeping in create and destroy
 
-    // Entity creation
-    inline EntityId CreateEntity()
-    {
-        EntityIndex index;
-
-        if (!freeEntities.empty())
-        {
-            index = freeEntities.back();
-            freeEntities.pop_back();
-        }
-        else
-        {
-            assert(entities.size() < MAX_ENTITIES);
-
-            index = static_cast<EntityIndex>(entities.size());
-            entities.emplace_back(EntityDesc{});
-        }
-
-        auto &entity = entities[index];
-        entity.alive = true;
-
-        return CreateEntityId(index, entity.version);
-    }
-
-    inline void DestroyEntity(EntityId id)
-    {
-        assert(IsAlive(id));
-
-        EntityIndex index = GetEntityIndex(id);
-        auto &entity = entities[index];
-
-        // clean up all the components attached to this entity
-        for (size_t i = 0; i < componentPools.size(); ++i)
-        {
-            if (entity.mask.test(i))
-            {
-                componentPools[i]->DestroyAt(index);
-            }
-        }
-
-        // rest component mask
-        entity.mask.reset();
-
-        // bump up the version counter
-        entity.alive = false;
-        ++entity.version;
-
-        // add to free list
-        freeEntities.push_back(index);
-    }
-
-    inline bool IsAlive(EntityId id) const
+    bool IsAlive(EntityID id) const
     {
         EntityIndex index = GetEntityIndex(id);
 
@@ -252,109 +104,213 @@ struct Scene
             return false;
         }
 
-        const auto &entity = entities[index];
+        const auto &entityDesc = entities[index];
 
-        return entity.alive && entity.version == GetEntityVersion(id);
+        return entityDesc.alive && entityDesc.generation == GetEntityGeneration(id);
     }
 
-    // Check if entity has this component type
-    template <typename T>
-    bool HasComponent(EntityId id)
+    EntityID CreateEntity()
     {
-        // cost 20 FPS
-        assert(IsAlive(id));
+        EntityIndex index;
 
-        EntityIndex index = GetEntityIndex(id);
-
-        ComponentTypeId componentId = GetComponentTypeId<T>();
-
-        return entities[index].mask.test(componentId);
-    }
-
-    // Get Component
-    template <typename T>
-    T *GetComponent(EntityId id)
-    {
-        // cost 20 FPS
-        assert(IsAlive(id));
-
-        // cost 40-50 FPS
-        // if (!HasComponent<T>(id))
-        // {
-        //     return nullptr;
-        // }
-
-        EntityIndex index = GetEntityIndex(id);
-
-        ComponentTypeId componentId = GetComponentTypeId<T>();
-
-        return static_cast<T *>(componentPools[componentId]->Get(index));
-    }
-
-    template <typename T, typename... Args>
-    T *AddComponent(EntityId id, Args &&...args)
-    {
-        assert(IsAlive(id));
-
-        EntityIndex index = GetEntityIndex(id);
-        ComponentTypeId componentId = GetComponentTypeId<T>();
-
-        // reserve space for this type of component pool
-        if (componentPools.size() <= componentId)
+        // check if we can reuse some slot
+        if (!freeIndices.empty())
         {
-            componentPools.resize(componentId + 1);
+            index = freeIndices.back();
+            freeIndices.pop_back();
+        }
+        else
+        {
+            assert(entities.size() < MAX_ENTITY_COUNT && "Cannot create more entities than max entity count.");
+
+            index = static_cast<EntityIndex>(entities.size());
+            entities.emplace_back(EntityDesc{});
         }
 
-        // If component pool is not initialized
-        if (!componentPools[componentId])
-        {
-            componentPools[componentId] = std::make_unique<ComponentPool<T>>();
-        }
+        auto &entityDesc = entities[index];
+        entityDesc.alive = true;
 
-        // only add component if entity doesn't have it already
-        assert(!HasComponent<T>(id));
-
-        void *componentMemory = componentPools[componentId]->Get(index);
-
-        // Placement new on this index slot inside our component pool
-        T *component = new (componentMemory) T(std::forward<Args>(args)...);
-
-        // mark the bitset that we have added this component to our entity
-        entities[index].mask.set(componentId);
-
-        return component;
+        return CreateEntityID(index, entityDesc.generation);
     }
 
-    template <typename T>
-    void RemoveComponent(EntityId id)
+    void DestroyEntity(EntityID id)
     {
-        assert(IsAlive(id));
-
-        if (!HasComponent<T>(id))
+        if (!IsAlive(id))
         {
             return;
         }
 
         EntityIndex index = GetEntityIndex(id);
-        ComponentTypeId componentId = GetComponentTypeId<T>();
+        auto &entityDesc = entities[index];
 
-        // free component from memory
-        T *component = static_cast<T *>(componentPools[componentId]->Get(index));
-        component->~T();
+        // clean up all the components attached to this entity
+        for (size_t i = 0; i < componentPools.size(); ++i)
+        {
+            if (entityDesc.mask.test(i))
+            {
+                componentPools[i]->Destroy(index);
+            }
+        }
 
-        // reset bit field for that component
-        entities[index].mask.reset(componentId);
+        // reset component mask
+        entityDesc.mask.reset();
+
+        // bump up the generation counter
+        entityDesc.alive = false;
+        ++entityDesc.generation;
+
+        // add to free list
+        freeIndices.push_back(index);
     }
 
-    // A way to call scene view from scene
-    template <typename... ComponentTypes>
-    SceneView<ComponentTypes...> View()
+    // Has component
+    template <typename T>
+    bool HasComponent(EntityID id)
     {
-        return SceneView<ComponentTypes...>(*this);
+        // check if entity is alive
+        if (!IsAlive(id))
+        {
+            return false;
+        }
+
+        EntityIndex index = GetEntityIndex(id);
+        ComponentTypeID componentID = GetComponentTypeID<T>();
+
+        return entities[index].mask.test(componentID);
     }
 
-    // Pool storage
-    std::vector<std::unique_ptr<IComponentPool>> componentPools;
+    // Add component to entity
+    template <typename T, typename... Args>
+    T *AddComponent(EntityID id, Args &&...args)
+    {
+        // check if entity is alive
+        assert(IsAlive(id) && "To add a component entity should be alive");
+
+        EntityIndex index = GetEntityIndex(id);
+        ComponentTypeID componentID = GetComponentTypeID<T>();
+
+        // check if entity already has this component
+        assert(!entities[index].mask.test(componentID) && "Entity already has this component");
+
+        // If this type already doesn't have a pool then reserve
+        if (componentPools.size() <= componentID)
+        {
+            // since component type ids start from 0, add 1 to get the new size
+            componentPools.resize(componentID + 1);
+        }
+
+        // if pool is not initialized then create it
+        if (!componentPools[componentID])
+        {
+            componentPools[componentID] = std::make_unique<PoolStorage<T>>();
+        }
+
+        // get memory location
+        void *componentMemory = componentPools[componentID]->Get(index);
+        // construct component in pool (inplace)
+        T *component = new (componentMemory) T(std::forward<Args>(args)...);
+
+        // mark the bit set that we have added this component
+        entities[index].mask.set(componentID);
+
+        return component;
+    }
+
+    // Remove component from entity
+    template <typename T>
+    void RemoveComponent(EntityID id)
+    {
+        // check if entity is alive
+        if (!IsAlive(id))
+        {
+            return;
+        }
+
+        EntityIndex index = GetEntityIndex(id);
+        ComponentTypeID componentID = GetComponentTypeID<T>();
+
+        // check if entity has this component
+        if (!entities[index].mask.test(componentID))
+        {
+            return;
+        }
+
+        // destroy component
+        componentPools[componentID]->Destroy(index);
+
+        // reset bit mask
+        entities[index].mask.reset(componentID);
+    }
+
+    // Get Component
+    template <typename T>
+    T *GetComponent(EntityID id)
+    {
+        // Check if Entity is alive
+        if (!IsAlive(id))
+        {
+            return nullptr;
+        }
+
+        EntityIndex index = GetEntityIndex(id);
+        ComponentTypeID componentID = GetComponentTypeID<T>();
+
+        // Check if entity has component
+        if (!entities[index].mask.test(componentID))
+        {
+            return nullptr;
+        }
+
+        // get component
+        T *component = static_cast<T *>(componentPools[componentID]->Get(index));
+
+        return component;
+    }
+
+    // Get Component Internal
+    template <typename T>
+    T *GetComponentInternal(EntityIndex index)
+    {
+        ComponentTypeID componentID = GetComponentTypeID<T>();
+        if (componentID >= componentPools.size() || !componentPools[componentID])
+        {
+            return nullptr;
+        }
+
+        return static_cast<T *>(componentPools[componentID]->Get(index));
+    }
+};
+
+template <typename... Types>
+struct View
+{
+    Scene &scene;
+    ComponentMask requiredMask;
+
+    View(Scene &scene) : scene{scene}
+    {
+        (requiredMask.set(GetComponentTypeID<Types>()), ...);
+    }
+
+    template <typename Func>
+    void Each(Func &&func)
+    {
+        for (EntityIndex i = 0; i < scene.entities.size(); ++i)
+        {
+            const auto &desc = scene.entities[i];
+            if (!desc.alive)
+            {
+                continue;
+            }
+            if ((desc.mask & requiredMask) != requiredMask)
+            {
+                continue;
+            }
+
+            EntityID id = CreateEntityID(i, desc.generation);
+            func(id, *scene.GetComponentInternal<Types>(i)...);
+        }
+    }
 };
 
 #endif // Entity_COMPONENT_SYSTEM_HPP

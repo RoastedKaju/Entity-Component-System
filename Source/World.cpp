@@ -15,7 +15,8 @@ void World::Init()
     botTexture = std::make_unique<Texture>(renderer, "Robot.png");
 
     // Make Entites And Attach Components
-    EntityId backgroundEntity = scene.CreateEntity();
+    std::cout << "BackgroundComponent ID at AddComponent: " << GetComponentTypeID<BackgroundComponent>() << std::endl;
+    EntityID backgroundEntity = scene.CreateEntity();
     scene.AddComponent<BackgroundComponent>(backgroundEntity, backgroundTexture.get());
 
     for (size_t i = 0; i < desiredBotCount; ++i)
@@ -78,7 +79,7 @@ void World::RemoveBot()
         return;
     }
 
-    EntityId entity = bots.back();
+    EntityID entity = bots.back();
     bots.pop_back();
 
     scene.DestroyEntity(entity);

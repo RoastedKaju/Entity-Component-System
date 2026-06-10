@@ -30,7 +30,7 @@ private:
     Scene scene;
 
     // Bots
-    std::vector<EntityId> bots;
+    std::vector<EntityID> bots;
 
     // Textures
     std::unique_ptr<Texture> backgroundTexture;
