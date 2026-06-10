@@ -1,5 +1,10 @@
 cmake_minimum_required(VERSION 3.24 FATAL_ERROR)
 
+set(CMAKE_TOOLCHAIN_FILE "${CMAKE_SOURCE_DIR}/Vendor/VCPKG/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
+
+message(STATUS "Toolchain: ${CMAKE_TOOLCHAIN_FILE}")
+message(STATUS "Prefix path: ${CMAKE_PREFIX_PATH}")
+
 # Put all executables in one place
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/Bin)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/Bin)
@@ -10,24 +15,16 @@ project(ECS)
 file(GLOB_RECURSE SOURCE_FILES "Source/*.cpp")
 file(GLOB_RECURSE HEADER_FILES "Source/*.hpp")
 
-add_executable(${PROJECT_NAME} ${SOURCE_FILES} ${HEADER_FILES})
+add_executable(${PROJECT_NAME})
+target_sources(${PROJECT_NAME} PRIVATE ${SOURCE_FILES} ${HEADER_FILES})
 
 # Set C++ standard
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_20)
 
 # Link SDL3
-set(SDL_TESTS OFF CACHE BOOL "" FORCE)
-set(SDL_EXAMPLES OFF CACHE BOOL "" FORCE)
-set(SDL_INSTALL OFF CACHE BOOL "" FORCE)
-set(SDL_SHARED ON CACHE BOOL "" FORCE)   # build DLL
-set(SDL_STATIC OFF CACHE BOOL "" FORCE)  # skip static lib
-add_subdirectory(Vendor/SDL3)
-target_link_libraries(${PROJECT_NAME} PRIVATE SDL3::SDL3)
-
-# Link SDL3 Image
-set(SDLIMAGE_VENDORED OFF CACHE BOOL "" FORCE) # use system libs instead of vendored
-add_subdirectory(Vendor/SDL3Image)
-target_link_libraries(${PROJECT_NAME} PRIVATE SDL3_image::SDL3_image)
+find_package(SDL3 CONFIG REQUIRED)
+find_package(SDL3_image CONFIG REQUIRED)
+target_link_libraries(${PROJECT_NAME} PRIVATE SDL3::SDL3 SDL3_image::SDL3_image)
 
 # Link ImGUI
 add_subdirectory(Vendor/ImGui)
