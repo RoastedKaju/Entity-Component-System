@@ -38,44 +38,143 @@ inline EntityGeneration GetEntityGeneration(EntityID entity)
     return static_cast<EntityGeneration>(entity);
 }
 
+// struct IStorage
+// {
+//     virtual ~IStorage() = default;
+//     virtual void *Get(size_t index) = 0;
+//     virtual void Destroy(size_t index) = 0;
+// };
+
+// template <typename T>
+// struct PoolStorage : public IStorage
+// {
+//     void *data{nullptr};
+//     size_t elementSize{0};
+//     size_t alignment{0};
+
+//     PoolStorage()
+//     {
+//         elementSize = sizeof(T);
+//         alignment = alignof(T);
+
+//         data = ::operator new(elementSize * MAX_ENTITY_COUNT, std::align_val_t(alignment));
+//     }
+
+//     ~PoolStorage()
+//     {
+//         ::operator delete(data, std::align_val_t(alignment));
+//     }
+
+//     void *Get(size_t index) override
+//     {
+//         return static_cast<char *>(data) + index * elementSize;
+//     }
+
+//     void Destroy(size_t index) override
+//     {
+//         // gets the pointer to this component's memory location
+//         T *component = static_cast<T *>(Get(index));
+//         component->~T();
+//     }
+// };
+
 struct IStorage
 {
     virtual ~IStorage() = default;
-    virtual void *Get(size_t index) = 0;
-    virtual void Destroy(size_t index) = 0;
+    virtual bool Remove(EntityID entity) = 0;
+    virtual bool Contains(EntityID entity) const = 0;
+    virtual size_t Size() const = 0;
+    virtual bool Empty() const = 0;
 };
 
 template <typename T>
-struct PoolStorage : public IStorage
+struct SparseSet : public IStorage
 {
-    void *data{nullptr};
-    size_t elementSize{0};
-    size_t alignment{0};
+    std::vector<EntityIndex> sparse;
+    std::vector<T> dense;
+    std::vector<EntityID> denseEntities;
 
-    PoolStorage()
+    void EnsureSparse(EntityIndex index)
     {
-        elementSize = sizeof(T);
-        alignment = alignof(T);
-
-        data = ::operator new(elementSize * MAX_ENTITY_COUNT, std::align_val_t(alignment));
+        if (index >= sparse.size())
+        {
+            sparse.resize(index + 1, INVALID_ENTITY_INDEX);
+        }
     }
 
-    ~PoolStorage()
+    template <typename... Args>
+    T *Emplace(EntityID id, Args &&...args)
     {
-        ::operator delete(data, std::align_val_t(alignment));
+        EntityIndex index = GetEntityIndex(id);
+        EnsureSparse(index);
+
+        if (sparse[index] != INVALID_ENTITY_INDEX)
+        {
+            // overwrite existing
+            dense[sparse[index]] = T(std::forward<Args>(args)...);
+            return &dense[sparse[index]];
+        }
+
+        sparse[index] = static_cast<EntityIndex>(dense.size());
+        dense.emplace_back(std::forward<Args>(args)...);
+        denseEntities.push_back(id);
+
+        return &dense.back();
     }
 
-    void *Get(size_t index) override
+    bool Remove(EntityID id) override
     {
-        return static_cast<char *>(data) + index * elementSize;
+        EntityIndex index = GetEntityIndex(id);
+        if (index >= sparse.size() || sparse[index] == INVALID_ENTITY_INDEX)
+        {
+            return false;
+        }
+
+        EntityIndex densePos = sparse[index];
+        EntityIndex lastPos = static_cast<EntityIndex>(dense.size() - 1);
+
+        if (densePos != lastPos)
+        {
+            dense[densePos] = std::move(dense[lastPos]);
+            denseEntities[densePos] = denseEntities[lastPos];
+            sparse[GetEntityIndex(denseEntities[densePos])] = densePos;
+        }
+
+        dense.pop_back();
+        denseEntities.pop_back();
+        sparse[index] = INVALID_ENTITY_INDEX;
+        return true;
     }
 
-    void Destroy(size_t index) override
+    T *Get(EntityID id)
     {
-        // gets the pointer to this component's memory location
-        T *component = static_cast<T *>(Get(index));
-        component->~T();
+        EntityIndex index = GetEntityIndex(id);
+        if (index >= sparse.size() || sparse[index] == INVALID_ENTITY_INDEX)
+        {
+            return nullptr;
+        }
+
+        return &dense[sparse[index]];
     }
+
+    const T *Get(EntityID id) const
+    {
+        EntityIndex index = GetEntityIndex(id);
+        if (index >= sparse.size() || sparse[index] == INVALID_ENTITY_INDEX)
+        {
+            return nullptr;
+        }
+        return &dense[sparse[index]];
+    }
+
+    bool Contains(EntityID id) const override
+    {
+        EntityIndex index = GetEntityIndex(id);
+        return index < sparse.size() && sparse[index] != INVALID_ENTITY_INDEX;
+    }
+
+    size_t Size() const override { return dense.size(); }
+    bool Empty() const override { return dense.empty(); }
 };
 
 struct Scene
@@ -92,7 +191,7 @@ struct Scene
     // tracking lists
     std::vector<EntityDesc> entities;
     std::vector<EntityIndex> freeIndices; // use stack its better for LIFO
-    std::vector<std::unique_ptr<IStorage>> componentPools;
+    std::vector<std::unique_ptr<IStorage>> componentSets;
     // can also add list of alive indices, but you will have to do extra book keeping in create and destroy
 
     bool IsAlive(EntityID id) const
@@ -144,11 +243,11 @@ struct Scene
         auto &entityDesc = entities[index];
 
         // clean up all the components attached to this entity
-        for (size_t i = 0; i < componentPools.size(); ++i)
+        for (size_t i = 0; i < componentSets.size(); ++i)
         {
             if (entityDesc.mask.test(i))
             {
-                componentPools[i]->Destroy(index);
+                componentSets[i]->Remove(id);
             }
         }
 
@@ -173,8 +272,8 @@ struct Scene
             return false;
         }
 
-        EntityIndex index = GetEntityIndex(id);
-        ComponentTypeID componentID = GetComponentTypeID<T>();
+        const EntityIndex index = GetEntityIndex(id);
+        const ComponentTypeID componentID = GetComponentTypeID<T>();
 
         return entities[index].mask.test(componentID);
     }
@@ -193,26 +292,22 @@ struct Scene
         assert(!entities[index].mask.test(componentID) && "Entity already has this component");
 
         // If this type already doesn't have a pool then reserve
-        if (componentPools.size() <= componentID)
+        if (componentSets.size() <= componentID)
         {
             // since component type ids start from 0, add 1 to get the new size
-            componentPools.resize(componentID + 1);
+            componentSets.resize(componentID + 1);
         }
 
-        // if pool is not initialized then create it
-        if (!componentPools[componentID])
+        // if set is not initialized then create it
+        if (!componentSets[componentID])
         {
-            componentPools[componentID] = std::make_unique<PoolStorage<T>>();
+            componentSets[componentID] = std::make_unique<SparseSet<T>>();
         }
 
-        // get memory location
-        void *componentMemory = componentPools[componentID]->Get(index);
-        // construct component in pool (inplace)
-        T *component = new (componentMemory) T(std::forward<Args>(args)...);
+        auto *set = static_cast<SparseSet<T> *>(componentSets[componentID].get());
+        T *component = set->Emplace(id, std::forward<Args>(args)...);
 
-        // mark the bit set that we have added this component
         entities[index].mask.set(componentID);
-
         return component;
     }
 
@@ -236,7 +331,7 @@ struct Scene
         }
 
         // destroy component
-        componentPools[componentID]->Destroy(index);
+        componentSets[componentID]->Remove(id);
 
         // reset bit mask
         entities[index].mask.reset(componentID);
@@ -256,28 +351,29 @@ struct Scene
         ComponentTypeID componentID = GetComponentTypeID<T>();
 
         // Check if entity has component
+        if (componentID >= componentSets.size() || !componentSets[componentID])
+        {
+            return nullptr;
+        }
         if (!entities[index].mask.test(componentID))
         {
             return nullptr;
         }
 
-        // get component
-        T *component = static_cast<T *>(componentPools[componentID]->Get(index));
-
-        return component;
+        return static_cast<SparseSet<T> *>(componentSets[componentID].get())->Get(id);
     }
 
     // Get Component Internal
     template <typename T>
-    T *GetComponentInternal(EntityIndex index)
+    T *GetComponentInternal(EntityID id)
     {
         ComponentTypeID componentID = GetComponentTypeID<T>();
-        if (componentID >= componentPools.size() || !componentPools[componentID])
+        if (componentID >= componentSets.size() || !componentSets[componentID])
         {
             return nullptr;
         }
 
-        return static_cast<T *>(componentPools[componentID]->Get(index));
+        return static_cast<SparseSet<T> *>(componentSets[componentID].get())->Get(id);
     }
 };
 
@@ -295,20 +391,34 @@ struct View
     template <typename Func>
     void Each(Func &&func)
     {
-        for (EntityIndex i = 0; i < scene.entities.size(); ++i)
+        // Resolve the pool for the first (ideally rarest) component type
+        using FirstType = std::tuple_element_t<0, std::tuple<Types...>>;
+        ComponentTypeID firstID = GetComponentTypeID<FirstType>();
+
+        if (firstID >= scene.componentSets.size() || !scene.componentSets[firstID])
         {
-            const auto &desc = scene.entities[i];
-            if (!desc.alive)
-            {
-                continue;
-            }
-            if ((desc.mask & requiredMask) != requiredMask)
+            return;
+        }
+
+        auto *firstPool = static_cast<SparseSet<FirstType> *>(scene.componentSets[firstID].get());
+
+        for (EntityID id : firstPool->denseEntities)
+        {
+            EntityIndex index = GetEntityIndex(id);
+
+            // Stale ID guard: generation must still match
+            if (!scene.IsAlive(id))
             {
                 continue;
             }
 
-            EntityID id = CreateEntityID(i, desc.generation);
-            func(id, *scene.GetComponentInternal<Types>(i)...);
+            // Check all other required components via bitmask
+            if ((scene.entities[index].mask & requiredMask) != requiredMask)
+            {
+                continue;
+            }
+
+            func(id, *scene.GetComponentInternal<Types>(id)...);
         }
     }
 };

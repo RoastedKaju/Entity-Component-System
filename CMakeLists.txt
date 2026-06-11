@@ -2,9 +2,6 @@ cmake_minimum_required(VERSION 3.24 FATAL_ERROR)
 
 set(CMAKE_TOOLCHAIN_FILE "${CMAKE_SOURCE_DIR}/Vendor/VCPKG/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
 
-message(STATUS "Toolchain: ${CMAKE_TOOLCHAIN_FILE}")
-message(STATUS "Prefix path: ${CMAKE_PREFIX_PATH}")
-
 # Put all executables in one place
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/Bin)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/Bin)

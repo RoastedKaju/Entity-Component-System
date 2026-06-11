@@ -50,7 +50,8 @@ void MovementSystem::Update(Scene &scene, float deltaTime)
     View<TransformComponent, WanderComponent> botView{scene};
 
     botView.Each([&](EntityID id, TransformComponent &transformComp, WanderComponent &wanderComp)
-                    {
+                 {
+                        (void)id;
                         // Move in current direction
                         transformComp.x += wanderComp.dx * wanderComp.speed * deltaTime;
                         transformComp.y += wanderComp.dy * wanderComp.speed * deltaTime;
