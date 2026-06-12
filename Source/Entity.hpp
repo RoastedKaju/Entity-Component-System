@@ -3,7 +3,7 @@
 
 #include "Common.hpp"
 
-constexpr uint32_t MAX_ENTITY_COUNT = 10'000;
+constexpr uint32_t MAX_ENTITY_COUNT = 100'000;
 constexpr uint32_t MAX_COMPONENT_TYPES = 32;
 constexpr uint32_t INVALID_ENTITY_INDEX = std::numeric_limits<uint32_t>::max();
 

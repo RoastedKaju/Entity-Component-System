@@ -5,6 +5,7 @@
 #include "Entity.hpp"
 #include "Components.hpp"
 #include "Systems.hpp"
+#include "Actor.hpp"
 
 class World
 {
@@ -39,6 +40,11 @@ private:
     // Systems
     std::vector<std::unique_ptr<ISystem>> updateSystems;
     std::vector<std::unique_ptr<IRenderSystem>> renderSystems;
+
+#ifdef USE_ACTORS
+    // Non-ECS Actors
+    std::vector<std::unique_ptr<Actor>> actors;
+#endif
 };
 
 #endif // WORLD_HPP

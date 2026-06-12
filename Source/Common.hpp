@@ -22,6 +22,8 @@
 #include <SDL3_image/SDL_image.h>
 #include <SDL3/SDL_render.h>
 
+#define USE_ACTORS 0
+
 static inline void check(bool result, const std::string &message = "Check failed")
 {
     if (!result)

@@ -39,7 +39,7 @@ void UI::DrawUI(float deltaTime)
 	ImGui::Text("Delta Time: %.4f", deltaTime);
 
 	int count = world->desiredBotCount;
-	ImGui::SliderInt("Bot Count", &count, 0, 9'999);
+	ImGui::SliderInt("Bot Count", &count, 0, 99'000);
 	world->desiredBotCount = count;
 
 	ImGui::End();
