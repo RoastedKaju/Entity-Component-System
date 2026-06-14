@@ -2,6 +2,12 @@ cmake_minimum_required(VERSION 3.24 FATAL_ERROR)
 
 set(CMAKE_TOOLCHAIN_FILE "${CMAKE_SOURCE_DIR}/Vendor/VCPKG/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
 
+option(BUILD_TESTING "Build unit tests" ON)
+
+if(BUILD_TESTING)
+    enable_testing()
+endif()
+
 # Put all executables in one place
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/Bin)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/Bin)
@@ -68,3 +74,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE ${ECS_LIBRARY})
 target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_SOURCE_DIR}/Source")
 
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_20)
+
+if(BUILD_TESTING)
+    add_subdirectory(Tests)
+endif()

@@ -13,7 +13,7 @@ if not exist %VCPKG_EXE% (
 
 REM install dependencies
 echo Installing dependencies....
-%VCPKG_EXE% install sdl3:x64-windows sdl3-image[png,jpeg]:x64-windows --recurse
+%VCPKG_EXE% install sdl3:x64-windows sdl3-image[png,jpeg]:x64-windows gtest --recurse
 
 if %errorlevel% neq 0 (
 	echo [ERROR] Installation failed.

@@ -15,7 +15,6 @@ void World::Init()
     botTexture = std::make_unique<Texture>(renderer, "Robot.png");
 
     // Make Entites And Attach Components
-    std::cout << "BackgroundComponent ID at AddComponent: " << GetComponentTypeID<BackgroundComponent>() << std::endl;
     EntityID backgroundEntity = scene.CreateEntity();
     scene.AddComponent<BackgroundComponent>(backgroundEntity, backgroundTexture.get());
 
