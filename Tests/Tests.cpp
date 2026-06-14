@@ -77,20 +77,77 @@ TEST(Scene, CanAddComponent)
 
 TEST(Scene, CanRemoveComponent)
 {
+    Scene scene{};
 
+    auto e1 = scene.CreateEntity();
+    scene.AddComponent<TransformComponent>(e1);
+
+    scene.RemoveComponent<TransformComponent>(e1);
+
+    auto entityDesc = scene.entities[GetEntityIndex(e1)];
+
+    const bool hasComponent = entityDesc.mask.test(GetComponentTypeID<TransformComponent>());
+
+    EXPECT_NE(hasComponent, true);
 }
 
 TEST(Scene, CanDestroyEntity)
 {
+    Scene scene{};
 
+    auto e1 = scene.CreateEntity();
+    scene.DestroyEntity(e1);
+
+    const bool isEmpty = scene.freeIndices.size() == 1;
+
+    EXPECT_EQ(isEmpty, true);
 }
 
 TEST(Scene, CanGetComponent)
 {
+    Scene scene{};
 
+    auto e1 = scene.CreateEntity();
+    scene.AddComponent<TransformComponent>(e1);
+
+    auto c1 = scene.GetComponent<TransformComponent>(e1);
+
+    EXPECT_NE(c1, nullptr);
 }
 
 TEST(View, MakeView)
 {
+    Scene scene{};
 
+    // Create 10 entities
+    for (size_t i = 0; i < 10; ++i)
+    {
+        scene.CreateEntity();
+    }
+
+    // Add only transform to first 5
+    for (size_t i = 0; i < 5; ++i)
+    {
+        auto entityDesc = scene.entities[i];
+        auto eID = CreateEntityID(i, entityDesc.generation);
+
+        scene.AddComponent<TransformComponent>(eID);
+    }
+
+    // Add both transform and sprite to last 5
+    for (size_t i = 5; i < 10; ++i)
+    {
+        auto entityDesc = scene.entities[i];
+        auto eID = CreateEntityID(i, entityDesc.generation);
+
+        scene.AddComponent<TransformComponent>(eID);
+        scene.AddComponent<SpriteComponent>(eID);
+    }
+
+    View<TransformComponent, SpriteComponent> view{scene};
+    uint8_t viewCount = 0;
+    view.Each([&viewCount](EntityID id, TransformComponent &transform, SpriteComponent &sprite)
+              { ++viewCount; });
+
+    EXPECT_EQ(viewCount, 5);
 }
